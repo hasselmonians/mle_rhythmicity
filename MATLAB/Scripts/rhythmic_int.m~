@@ -1,0 +1,94 @@
+function [ D ] = rhythmic_int( varargin )
+%RHYTHMIC_INT Definite ntegral of the conditional intensity function for lags
+%   Generates a normalized conditional intensity function (CIF) (max 1) for
+%   the rate of lags.
+%
+% INPUTS:
+%   phat: If rhythmic_fun is passed only one argument, the second is the
+%       vector form of the parameters (below). phat may also be a cell
+%       array. If passed no arguments, phat = [log10(0.3) 0.2 log10(0.5) 10
+%       0.2 0.8]
+%
+%   tau (log10(sec)): Exponential falloff rate of whole distribution
+%   b: Baseline CI
+%   c (log10(sec)): Falloff rate of rhythmicity magnitude
+%   f (Hz): Frequency of rhythmicity
+%   s: Skipping (optional)
+%   r: Rhythmicity
+%
+%   tau-r must be scalars or vectors of the same size.
+%
+% PARAMETERS:
+%   max_lag [0.6 sec]: The width of the analysis window
+%
+% RETURNS:
+%   D: The CIF for the distribution of lags
+%
+% Copywrite (c) 2015, Trustees of Boston University
+% All rights reserved.
+%
+% This file is part of mle_rhythmicity revision 2.0. The last committed
+% version of the previous revision is the SHA starting with 93862ac...
+%
+% This code has been freely distributed by the authors under the BSD
+% license (http://opensource.org/licenses/BSD2-Clause). If used or
+% modified, we would appreciate if you cited our paper:
+%
+% Climer JR, DiTullio R, Newman EL, Hasselmo ME, Eden UT. (2014),
+% Examination of rhythmicity of extracellularly recorded neurons in the
+% entorhinal cortex. Hippocampus, 25:460-473. doi: 10.1002/hipo.22383.
+% PROCESS INPUT
+if (nargin==0||(any(cellfun(@ischar,varargin))&&find(cellfun(@ischar,varargin),1)==1)) % If no parameter arguments are passed
+    phat =  [log10(0.3) 0.2 log10(0.5) 10 0.2 0.8]; % Set to default
+    varargin = {};
+end
+
+if (nargin==1||(any(cellfun(@ischar,varargin))&&find(cellfun(@ischar,varargin),1)==2))% If using phat
+    phat = varargin{1};
+    varargin = varargin(2:end);
+end
+
+if exist('phat','var')
+    if ~iscell(phat), phat=num2cell(phat); end
+else
+    phat = varargin(1:min([find(cellfun(@ischar,varargin),1)-1 numel(varargin)]));
+    varargin = varargin(min([find(cellfun(@ischar,varargin),1)-1 numel(varargin)])+1:end);
+end
+
+ip = inputParser;
+
+ip.addParamValue('max_lag',0.6);% Lag window
+
+% Parse input and flush to workspace
+ip.parse(varargin{:});
+for j=fields(ip.Results)'
+    eval([j{1} '= ip.Results.' j{1} ';']);
+end
+
+% Get each parameter
+tau = phat{1};
+b = phat{2};
+c = phat{3};
+f = phat{4};
+if numel(phat)>5
+    s = phat{5};
+else
+    s = 0;
+end
+r = phat{end};
+
+s(s==0) = realmin;
+
+A = (10.^-c+10.^-tau);
+B = exp(max_lag*A);
+Binv = B.^-1;
+
+D = b.*max_lag+(1-b).*(10.^tau).*(1-exp(-max_lag*10.^-tau))+(r.*(1-b)/4).*...
+    ((2+2*sqrt(1-s)-s).*((Binv).*(A.*(B-cos(2*pi*max_lag*f))+2*pi*f.*sin(2*pi*max_lag*f))./...
+    (4*pi^2*f.^2+A.^2))+...
+    4*s.*((Binv).*(A.*(B-cos(pi*max_lag*f))+pi*f.*sin(pi*max_lag*f))./...
+    (pi^2*f.^2+A.^2))+...
+    (2-2*sqrt(1-s)-3*s).*(10.^(c+tau)).*(1-(Binv))./(10.^c+10.^tau));
+
+end
+
