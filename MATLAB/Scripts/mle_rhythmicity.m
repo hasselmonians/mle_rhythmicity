@@ -75,6 +75,7 @@ ip.addParamValue('plotit',true);
 ip.addParamValue('noskip',false);
 ip.addParamValue('f_range',[1 13]);
 ip.addParamValue('alpha',0.05);
+ip.addParamValue('t_axis',[ ]);
 ip.parse(varargin{:});
 for j = fields(ip.Results)'
     eval([j{1} ' = ip.Results.' j{1} ';']);
@@ -147,7 +148,7 @@ phat_noskip = pso(...
     ,[-inf 0 -inf f_range(1) 0]...
     ,[inf 0.5 inf f_range(2) 1]...
     ,[] ...
-    ,psooptimset('Generations',100,'InitialPopulation',InitialPopulation,'PopulationSize',PopulationSize,'CosnrtBoundar','Reflect'...
+    ,psooptimset('Generations',100,'InitialPopulation',InitialPopulation,'PopulationSize',PopulationSize,'ConstrBoundary','Reflect'...
     ...,'PlotFcns',{@psoplotswarm}...
     )...
     );
@@ -218,9 +219,17 @@ else % noskip=true
     stats.p_rhythmic = 1-chi2cdf(stats.deviance_rhythmic,3);
 end
 %% plotting
-clf
+cla
 if plotit    
-   t_axis = linspace(0,max_lag,61);
+   if isempty(t_axis)
+       t_axis = linspace(0,max_lag,61);
+   else
+       if ~all(diff(t_axis)-(t_axis(2)-t_axis(1))<0.0001)
+            warning('Custom t_axis must be monotonically increasing. Using default 61 bins')
+            t_axis = linspace(0,max_lag,61);
+       end
+   end
+   tn = length(t_axis);
    b=histc(lags_list,t_axis);
    bar(mean([t_axis(1:end-1);t_axis(2:end)]),b(1:end-1),1);
    xlim([0 max_lag]);
@@ -232,25 +241,25 @@ if plotit
     end
     ps = passall(@(varargin)cif_fun(linspace(0,max_lag,200),varargin{2:end},varargin{1}/(1-varargin{3})),phat)/...
     passall(@(varargin)cif_int(max_lag,varargin{2:end},varargin{1}/(1-varargin{3})),phat);
-    plot(linspace(0,max_lag,200),ps*max_lag*n/61,'r','LineWidth',2);
+    plot(linspace(0,max_lag,200),ps*max_lag*n/tn,'r','LineWidth',2);
     [cif_fun, cif_int] = cif_generator('flat');
     ps = passall(@(varargin)cif_fun(linspace(0,max_lag,200),varargin{:}),phat_flat)/...
     passall(@(varargin)cif_int(max_lag,varargin{:}),phat_flat);    
-    plot(linspace(0,max_lag,200),ps*max_lag*n/61,'c--','LineWidth',2);
+    plot(linspace(0,max_lag,200),ps*max_lag*n/tn,'c--','LineWidth',2);
    ttl = ['\hat{a}' sprintf('=%2.2g, p',phat(1)) '_{rhyth}=' sprintf('%2.2g',stats.p_rhythmic)];
    lgnd = {'data','MLE','flat'};
    if ~noskip
       [cif_fun, cif_int] = cif_generator('noskip');
       ps = passall(@(varargin)cif_fun(linspace(0,max_lag,200),varargin{2:end},varargin{1}/(1-varargin{3})),phat_noskip)/...
         passall(@(varargin)cif_int(max_lag,varargin{2:end},varargin{1}/(1-varargin{3})),phat_noskip);
-      plot(linspace(0,max_lag,200),ps*max_lag*n/61,'g--');
+      plot(linspace(0,max_lag,200),ps*max_lag*n/tn,'g--');
       
-      ttl = [ttl ', s=' sprintf('%2.2g',phat(end)) ', p_{skip}=' sprintf('%2.2g',stats.p_skip)];
+      ttl = [ttl ', s=' sprintf('%2.2g',phat(end)) ', p_{skip}=' sprintf('%2.2g',stats.p_skipping)];
       lgnd = [lgnd {'no-skip'}];
    end
    hold off
    legend(lgnd{:});
-   clc
+   %clc
     title(['$$' ttl '$$'],'Interpreter','latex');
 end
 %% Package output
