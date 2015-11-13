@@ -8,7 +8,7 @@ function [ data, inds ] = epoch_data( spk_ts, epochs, varargin )
 %
 % PARAMETERS
 %   max_lag (0.6): Examination window
-%   lagmode ('lead') - Can be 'lead' or 'lag'. If lead, excludes leading
+%   mode ('lead') - Can be 'lead' or 'lag'. If lead, excludes leading
 %       spikes which would have lags falling out of the epoch. If lag, only
 %       excludes lags falling out of epoch. 
 %
@@ -38,20 +38,20 @@ end
 
 % Import data
 ip = inputParser;
-ip.addParamValue('lagmode','lead');
+ip.addParamValue('mode','lead');
 ip.addParamValue('max_lag', 0.6);
 ip.parse(varargin{:});
 for j = fields(ip.Results)'
     eval([j{1} ' = ip.Results.' j{1} ';']);
 end
 
-% Format lead_epochs based on lagmode
-if strcmp(lagmode,'lead')
+% Format lead_epochs based on mode
+if strcmp(lower(mode),'lead')
     lead_epochs = [epochs(:,1) epochs(:,2)-max_lag];
-elseif strcmp(lagmode,'lag')
+elseif iequal(lower(mode),'lag')
     lead_epochs = epochs;
 else
-    error('epoch_data:unrecognizedMode','Error. Unrecognized lagmode %s. Must be ''lead'' or ''lag''',lagmode);
+    error('epoch_data:unrecognizedMode','Error. Unrecognized mode %s. Must be ''lead'' or ''lag''',mode);
 end
 lead_epochs = epochs(lead_epochs(:,2)>lead_epochs(:,1),:);% Keep only valid epochs
 
